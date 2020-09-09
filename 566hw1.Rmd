@@ -1,0 +1,163 @@
+---
+title: "566hw1"
+output: html_document
+authur: Jiqing Wu
+---
+
+```{r}
+#install.packages("data.table")
+#install.packages("leaflet")
+library(data.table)
+library(leaflet)
+library(tidyverse)
+
+PMdata2004 <- data.table::fread("/Users/jiqingwu/Desktop/566 Introduction to Health Data Science/hw1/2004California.csv")
+PMdata2019 <- data.table::fread("/Users/jiqingwu/Desktop/566 Introduction to Health Data Science/hw1/2019California.csv")
+
+```
+
+##1
+```{r}
+#2004
+dim(PMdata2004)
+head(PMdata2004)
+tail(PMdata2004)
+str(PMdata2004)
+
+names(PMdata2004)<-str_replace_all(names(PMdata2004), c(" " = "." , "," = "" ))
+
+summary(PMdata2004$Daily.Mean.PM2.5.Concentration)
+summary(PMdata2004$DAILY_AQI_VALUE)
+table(PMdata2004$Date)
+table(PMdata2004$Site.Name)
+
+hist(PMdata2004$Daily.Mean.PM2.5.Concentration)
+hist(PMdata2004$DAILY_AQI_VALUE)
+```
+
+##There are 19233 rows and 20 columns (20 variables) in the table. Daily AQI level shows
+how polluted the air currently is. Public health risks increase as the AQI rises. The 
+maxium is 301 which means the pollution is severe.The mean value (46.33) and median 
+(42.00) are similar, which means that the health risk in 2004 caused by air pollution is not very high, no need to worry. 
+
+The maxium value of mean PM2.5 concentration is 251. The median is 10.10 and mean is 13.13 which means in general,daily mean PM2.5 concentration in Californai in 2004 is not very high.
+
+```{r}
+#2019
+dim(PMdata2019)
+head(PMdata2019)
+tail(PMdata2019)
+str(PMdata2019)
+
+names(PMdata2019)<-str_replace_all(names(PMdata2019), c(" " = "." , "," = "" ))
+
+summary(PMdata2019$Daily.Mean.PM2.5.Concentration)
+summary(PMdata2019$DAILY_AQI_VALUE)
+table(PMdata2019$Date)
+table(PMdata2019$Site.Name)
+
+hist(PMdata2019$Daily.Mean.PM2.5.Concentration)
+hist(PMdata2019$DAILY_AQI_VALUE)
+```
+
+##There are 53328 rows and 20 columns.
+In general, The daily AQI value decreased (median: from 42 to 27, mean: from 46.33 to 30.6 max: from 301 to 185). The daily mean PM2.5 concentration also decreased from 2004 to 2019 (median:from 10.10 to 6.5, mean: from 13.13 to 7.792, max: from 251 to 120.9). 
+
+##2
+```{r}
+new2004<-PMdata2004
+new2004$year<-rep(2004,nrow(new2004))
+
+new2019<-PMdata2019
+new2019$year<-rep(2019,nrow(new2019))
+
+total <- rbind(new2004,new2019)
+str(total)
+
+names(total)[names(total) == "Daily.Mean.PM2.5.Concentration"] <- "PM2.5"
+names(total)[names(total) == "DAILY_AQI_VALUE"] <- "AQI"
+
+```
+
+##3
+```{r}
+library(leaflet)
+stations2004 <- (unique(new2004[,c("SITE_LATITUDE","SITE_LONGITUDE")]))  
+stations2019 <- (unique(new2019[,c("SITE_LATITUDE","SITE_LONGITUDE")]))  
+
+leaflet() %>% 
+  addProviderTiles('CartoDB.Positron') %>% 
+  addCircles(data=stations2004, lat=~SITE_LATITUDE,lng=~SITE_LONGITUDE, opacity=1, fillOpacity=1, radius=400, color="blue") %>%
+  addCircles(data=stations2019, lat=~SITE_LATITUDE,lng=~SITE_LONGITUDE, opacity=1, fillOpacity=1, radius=400, color="red")
+
+```
+
+##From the map,red dots(2019) is much more than blue dots(2004), and the distribution of red dots is more representative. This means that the research results of 2019 is more powerful than that in 2004.
+
+##4
+```{r}
+summary(total$PM2.5)
+summary(total$AQI)
+
+dim(total[PM2.5<=0])[1]/dim(total)[1]
+
+newtotal<-total[PM2.5>=0]
+summary(newtotal$PM2.5)
+summary(newtotal$AQI)
+dim(newtotal[is.na(PM2.5)])[1]/dim(newtotal)[1]
+dim(newtotal[is.na(AQI)])[1]/dim(newtotal)[1]
+
+hist(newtotal$PM2.5)
+hist(newtotal$AQI)
+```
+
+##The concentration of PM2.5 is impossible to be less than 0, the proportion is 0.529%. We need to remove all the obs less than 0. And there is no missing value in this dataset. 
+
+The overall distribution of PM2.5 concentration is not normally distributed. Most of the values are distributed from 0 to 20. 
+
+The overall distribution of daily AQI looks more normal. Most of data are distributed around 30.
+
+##5
+```{r}
+#state
+hist(PMdata2004$DAILY_AQI_VALUE)
+hist(PMdata2019$DAILY_AQI_VALUE)
+
+mean(PMdata2004$DAILY_AQI_VALUE)
+mean(PMdata2019$DAILY_AQI_VALUE)
+```
+
+##Obviously, from the whole state, the mean AQI value decreased. The mean value decreased from 46.32278 in 2004 to 30.60107 in 2019, which means the air condition become better.
+
+```{r}
+#County
+
+library(plyr)
+Mean2004<-ddply(PMdata2004,.(COUNTY),summarize,meanValue=mean(DAILY_AQI_VALUE))
+ggplot(data=Mean2004, aes(x=Mean2004$meanValue,y=Mean2004$COUNTY))+geom_point()+labs(title="Mean Daily AQI in different counties in 2004")+xlab("Mean Daily AQI")+ylab("County")
+
+Mean2019<-ddply(PMdata2019,.(COUNTY),summarize,meanValue=mean(DAILY_AQI_VALUE))
+ggplot(data=Mean2019, aes(x=Mean2019$meanValue,y=Mean2019$COUNTY))+geom_point()+labs(title="Mean Daily AQI in different counties in 2019")+xlab("Mean Daily AQI")+ylab("County")
+
+```
+
+##After calculating the mean value for each county in 2004 and 2019, we can see that daily AQI varies a lot in different counties (in 2004, from about 10 to less than 60. in 2019, from about 10 to less than 50). But in general, mean daily AQI in each county decreased from 2004 to 2019.
+
+```{r}
+#LA
+LosAngeles2004 = PMdata2004[COUNTY == "Los Angeles", .(SITE_LATITUDE, DAILY_AQI_VALUE)]
+plot(LosAngeles2004$SITE_LATITUDE, LosAngeles2004$DAILY_AQI_VALUE, pch=19, cex=0.5, 
+     main="AQI in different sites of LA in 2004", 
+     xlab="Latitude", ylab="AQI")
+
+LosAngeles2019 = PMdata2019[COUNTY == "Los Angeles", .(SITE_LATITUDE, DAILY_AQI_VALUE)]
+plot(LosAngeles2019$SITE_LATITUDE, LosAngeles2019$DAILY_AQI_VALUE, pch=19, cex=0.5, 
+     main="AQI in different sites of LA in 2019", 
+     xlab="Latitude", ylab="AQI")
+
+names(sort(-table(LosAngeles2004$DAILY_AQI_VALUE)))[1]
+names(sort(-table(LosAngeles2019$DAILY_AQI_VALUE)))[1]
+
+```
+
+##Daily AQI in different sites of LA are slightly different. It clearly shows that AQI in LA in 2019 is lower than that in 2004. The mode of AQI in LA decreased from 52 in 2004 to 40 in 2019.
